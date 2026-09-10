@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 package com.signalgate.pulse
 
 import android.app.NotificationChannel
@@ -85,11 +85,11 @@ class SignalGateCallScreeningService : TelecomCallScreeningService() {
         // would let the Telecom framework treat the missing response as implicit ALLOW.
         val phoneNumber = details.handle?.schemeSpecificPart?.takeIf { it.isNotBlank() }
         if (phoneNumber == null) {
-            Timber.e("SECURITY_FAILURE — onScreenCall received a null/malformed Call.Details.handle")
+            Timber.tag(TAG).e("SECURITY_FAILURE — onScreenCall received a null/malformed Call.Details.handle")
             onSecurityFailure("UNKNOWN_MALFORMED_HANDLE")
             return
         }
-        Timber.d("onScreenCall: screening request received")
+        Timber.tag(TAG).d("onScreenCall: screening request received")
 
         launch {
             executeScreeningSafely(phoneNumber, onSecurityFailure) {
@@ -137,10 +137,10 @@ class SignalGateCallScreeningService : TelecomCallScreeningService() {
         try {
             work()
         } catch (e: TimeoutCancellationException) {
-            Timber.e(e, "SECURITY_FAILURE — screening decision exceeded internal deadline")
+            Timber.tag(TAG).e(e, "SECURITY_FAILURE — screening decision exceeded internal deadline")
             onSecurityFailure(phoneNumber)
         } catch (e: Exception) {
-            Timber.e(e, "SECURITY_FAILURE — unhandled screening error")
+            Timber.tag(TAG).e(e, "SECURITY_FAILURE — unhandled screening error")
             onSecurityFailure(phoneNumber)
         }
     }
@@ -176,14 +176,14 @@ class SignalGateCallScreeningService : TelecomCallScreeningService() {
         } catch (e: Exception) {
             // The decision response is already complete. A persistence failure must
             // not trigger a second response or rewrite the completed call outcome.
-            Timber.e(e, "Post-response consequence persistence failed")
+            Timber.tag(TAG).e(e, "Post-response consequence persistence failed")
         }
 
         try {
             dispatchUx(callInfo, decision)
         } catch (e: Exception) {
             // UX is best effort after both decision and response are complete.
-            Timber.e(e, "Optional screening UX dispatch failed")
+            Timber.tag(TAG).e(e, "Optional screening UX dispatch failed")
         }
     }
 
@@ -257,7 +257,7 @@ class SignalGateCallScreeningService : TelecomCallScreeningService() {
             try {
                 audit(failureEntry)
             } catch (e: Exception) {
-                Timber.e(e, "Failed to write SECURITY_FAILURE audit record")
+                Timber.tag(TAG).e(e, "Failed to write SECURITY_FAILURE audit record")
             }
         }
     }
