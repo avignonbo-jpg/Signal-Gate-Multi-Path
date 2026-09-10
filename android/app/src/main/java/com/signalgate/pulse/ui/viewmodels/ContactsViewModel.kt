@@ -36,6 +36,9 @@ class ContactsViewModel(
     private val _isSaved = MutableStateFlow(false)
     val isSaved = _isSaved.asStateFlow()
 
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving = _isSaving.asStateFlow()
+
     private val _saveError = MutableStateFlow<String?>(null)
     val saveError = _saveError.asStateFlow()
 
@@ -114,33 +117,49 @@ class ContactsViewModel(
      */
     fun saveSelectedToAllowList() {
         viewModelScope.launch {
+            _isSaving.value = true
             _saveError.value = null
-            val selected = _contacts.value.filter { it.isSelected }
-            if (selected.isEmpty()) {
-                // Nothing selected — treat as an explicit "neither" choice rather
-                // than silently refusing to advance. See skipContactImport() for
-                // the same outcome via a dedicated button.
-                _isSaved.value = true
-                return@launch
-            }
+            try {
+                val selected = _contacts.value.filter { it.isSelected }
+                if (selected.isEmpty()) {
+                    // Nothing selected — treat as an explicit "neither" choice rather
+                    // than silently refusing to advance. See skipContactImport() for
+                    // the same outcome via a dedicated button.
+                    _isSaved.value = true
+                    return@launch
+                }
 
-            val contactsSourceId = settingRepository.getSettingValue("contacts_source_id")?.toIntOrNull()
-            if (contactsSourceId == null) {
-                // Previously bailed silently here, leaving the user stuck on this
-                // screen with no explanation and no way forward. Surface it instead.
-                _saveError.value = "Couldn't save your selection — please try again."
-                return@launch
-            }
+                val contactsSourceId = settingRepository.getSettingValue("contacts_source_id")?.toIntOrNull()
+                if (contactsSourceId == null) {
+                    // Previously bailed silently here, leaving the user stuck on this
+                    // screen with no explanation and no way forward. Surface it instead.
+                    _saveError.value = "Couldn't save your selection — please try again."
+                    return@launch
+                }
 
-            selected.forEach { contact ->
-                securityRuleRepository.addContactAllow(
-                    phoneNumber = contact.normalizedNumber,
-                    sourceId = contactsSourceId,
-                    displayName = contact.displayName
+                // Batched — see SecurityRuleRepository.addContactsAllowBatch() doc.
+                // The previous per-contact forEach + addContactAllow() loop triggered
+                // one full-table bloom rebuild per contact, which for a "Select All"
+                // import of dozens/hundreds of contacts silently took many seconds
+                // with no loading indicator (isLoading only ever covered the initial
+                // contact-list fetch) — this is what looked like the button "not
+                // working." One batched insert + one rebuild fixes both the delay
+                // and, combined with isSaving below, the missing feedback.
+                securityRuleRepository.addContactsAllowBatch(
+                    contacts = selected.map { it.normalizedNumber to it.displayName },
+                    sourceId = contactsSourceId
                 )
-            }
 
-            _isSaved.value = true
+                _isSaved.value = true
+            } catch (e: Exception) {
+                // Previously uncaught — an exception anywhere in the insert path
+                // would silently kill this coroutine, _isSaved would never be set,
+                // and the screen would sit there forever with no error and no way
+                // forward. Surface it instead, same as the missing-sourceId case above.
+                _saveError.value = "Couldn't save your selection — please try again."
+            } finally {
+                _isSaving.value = false
+            }
         }
     }
 
