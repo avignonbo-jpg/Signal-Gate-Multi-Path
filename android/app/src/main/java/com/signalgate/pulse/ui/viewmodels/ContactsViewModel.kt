@@ -7,9 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.signalgate.pulse.database.repositories.BlocklistRepository
 import com.signalgate.pulse.database.repositories.SettingRepository
 import com.signalgate.pulse.logic.SecurityRuleRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ContactItem(
     val displayName: String,
@@ -58,29 +60,42 @@ class ContactsViewModel(
     fun loadContacts(context: Context) {
         viewModelScope.launch {
             _isLoading.value = true
-            val loaded = mutableListOf<ContactItem>()
 
-            val cursor = context.contentResolver.query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                arrayOf(
-                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                    ContactsContract.CommonDataKinds.Phone.NUMBER
-                ),
-                null, null,
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
-            )
+            // ContentResolver.query() against the Contacts provider is a real Binder
+            // IPC that fills a SQLiteCursor on the provider's side — genuine disk I/O,
+            // not just an in-memory call. viewModelScope defaults to
+            // Dispatchers.Main.immediate, so without this withContext the query and
+            // the full cursor walk below both ran on the UI thread (confirmed via a
+            // StrictMode DiskReadViolation pointing straight at this line). Harmless
+            // on a small emulator contacts list, but scales with the user's real
+            // contact count.
+            val loaded = withContext(Dispatchers.IO) {
+                val result = mutableListOf<ContactItem>()
 
-            cursor?.use {
-                val nameIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-                val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                while (it.moveToNext()) {
-                    val name = it.getString(nameIndex) ?: continue
-                    val number = it.getString(numberIndex) ?: continue
-                    val normalized = normalizeNumber(number)
-                    if (normalized.isNotBlank()) {
-                        loaded.add(ContactItem(name, number, normalized))
+                val cursor = context.contentResolver.query(
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                    arrayOf(
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        ContactsContract.CommonDataKinds.Phone.NUMBER
+                    ),
+                    null, null,
+                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+                )
+
+                cursor?.use {
+                    val nameIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                    val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                    while (it.moveToNext()) {
+                        val name = it.getString(nameIndex) ?: continue
+                        val number = it.getString(numberIndex) ?: continue
+                        val normalized = normalizeNumber(number)
+                        if (normalized.isNotBlank()) {
+                            result.add(ContactItem(name, number, normalized))
+                        }
                     }
                 }
+
+                result
             }
 
             _contacts.value = loaded
