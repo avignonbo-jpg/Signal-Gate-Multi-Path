@@ -804,6 +804,16 @@ fun ContactsImportStep(
     val contacts by viewModel.contacts.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    fun ContactsImportStep(
+    viewModel: ContactsViewModel = koinViewModel(),
+    ...
+) {
+    val isLoading by viewModel.isLoading.collectAsState()
+    val isSaving by viewModel.isSaving.collectAsState()     // ← added
+    val isSaved by viewModel.isSaved.collectAsState()
+    val saveError by viewModel.saveError.collectAsState()
+
+    
     val isSaved by viewModel.isSaved.collectAsState()
     val saveError by viewModel.saveError.collectAsState()
     // Bug fix: viewModel.filteredContacts / viewModel.selectedCount are plain getters
@@ -913,7 +923,36 @@ fun ContactsImportStep(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { viewModel.saveSelectedToAllowList() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .border(1.5.dp, NeonCyan, RoundedCornerShape(28.dp)),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = NeonCyan.copy(alpha = 0.2f),
+                contentColor = TextPrimary
+            ),
+            shape = RoundedCornerShape(28.dp),
+            enabled = !isLoading && !isSaving          // ← was: !isLoading
+        ) {
+            if (isSaving) {                             // ← added block
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = TextPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("IMPORT & CONTINUE  ›", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            }
+        }
 
+        TextButton(
+            onClick = { viewModel.skipContactImport() },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading && !isSaving          // ← was: !isLoading
+
+        
         if (saveError != null) {
             Text(
                 text = saveError ?: "",
