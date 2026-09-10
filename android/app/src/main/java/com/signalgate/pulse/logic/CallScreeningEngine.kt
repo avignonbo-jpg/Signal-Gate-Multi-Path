@@ -67,7 +67,7 @@ class CallScreeningEngine(
     suspend fun screenCall(phoneNumber: String, callDetails: android.telecom.Call.Details?): CallInfo {
         val sanitizedOriginal = SanitizationEngine.sanitizePhoneNumber(phoneNumber)
         val normalized = normalizePhoneNumber(sanitizedOriginal)
-        Timber.d("Screening call from: $sanitizedOriginal (normalized: $normalized)")
+        Timber.tag(TAG).d("Screening call from: $sanitizedOriginal (normalized: $normalized)")
 
         return try {
             val decision = repository.getCallDecision(normalized)
@@ -81,7 +81,7 @@ class CallScreeningEngine(
             // number is clean. Preserve the failure as a typed domain result so
             // SignalGateCallScreeningService can apply its separately documented
             // Android CallResponse policy and write an auditable failure record.
-            Timber.e(e, "Engine failure; returning explicit SECURITY_FAILURE")
+            Timber.tag(TAG).e(e, "Engine failure; returning explicit SECURITY_FAILURE")
             buildSecurityFailureInfo(sanitizedOriginal, normalized)
         }
     }
@@ -97,7 +97,7 @@ class CallScreeningEngine(
             "manual_allow" -> CallTier.ALLOWLISTED
             else           -> CallTier.CLEAN_UNKNOWN
         }
-        Timber.d("ALLOW — tier=$tier source=${decision.source}")
+        Timber.tag(TAG).d("ALLOW — tier=$tier source=${decision.source}")
         return CallInfo(
             originalPhoneNumber   = original,
             normalizedPhoneNumber = normalized,
@@ -131,7 +131,7 @@ class CallScreeningEngine(
             ScreeningAction.BLOCK
         }
 
-        Timber.d("$callDecision — tier=$tier source=${decision.source} confidence=${decision.confidence}")
+        Timber.tag(TAG).d("$callDecision — tier=$tier source=${decision.source} confidence=${decision.confidence}")
 
         return CallInfo(
             originalPhoneNumber   = original,
@@ -182,22 +182,22 @@ class CallScreeningEngine(
         val mode = try {
             HeuristicsMode.fromKey(settingRepository?.getSettingValue(SettingKeys.HEURISTICS_MODE))
         } catch (e: Exception) {
-            Timber.e(e, "Failed to read heuristics_mode, defaulting to ${HeuristicsMode.DEFAULT}")
+            Timber.tag(TAG).e(e, "Failed to read heuristics_mode, defaulting to ${HeuristicsMode.DEFAULT}")
             HeuristicsMode.DEFAULT
         }
 
         val threshold = mode.riskThreshold
         if (threshold == null) {
             // OFF — don't even run the evaluator.
-            Timber.d("Heuristics OFF — skipping gray-zone evaluation")
+            Timber.tag(TAG).d("Heuristics OFF — skipping gray-zone evaluation")
             return buildDefaultInfo(original, normalized)
         }
 
         val evaluation = riskEvaluator.evaluate(sourcesMatched = 0, callDetails = callDetails)
-        Timber.d("Gray-zone: risk=${evaluation.score} stir=${evaluation.stirLevel} mode=$mode threshold=$threshold")
+        Timber.tag(TAG).d("Gray-zone: risk=${evaluation.score} stir=${evaluation.stirLevel} mode=$mode threshold=$threshold")
 
         return if (evaluation.score >= threshold) {
-            Timber.d("SCREEN — Tier 4 HEURISTIC_FLAG (gray-zone risk=${evaluation.score})")
+            Timber.tag(TAG).d("SCREEN — Tier 4 HEURISTIC_FLAG (gray-zone risk=${evaluation.score})")
             CallInfo(
                 originalPhoneNumber   = original,
                 normalizedPhoneNumber = normalized,
@@ -229,7 +229,7 @@ class CallScreeningEngine(
     }
 
     private fun buildDefaultInfo(original: String, normalized: String): CallInfo {
-        Timber.d("ALLOW — Tier 5 CLEAN_UNKNOWN (no match, low risk)")
+        Timber.tag(TAG).d("ALLOW — Tier 5 CLEAN_UNKNOWN (no match, low risk)")
         return CallInfo(
             originalPhoneNumber   = original,
             normalizedPhoneNumber = normalized,
@@ -250,5 +250,4 @@ class CallScreeningEngine(
      * intentionally preserves, since exact-match DB lookups need digits/+ only.
      */
     private fun normalizePhoneNumber(phoneNumber: String): String =
-        SanitizationEngine.sanitizePhoneNumber(phoneNumber).replace(Regex("[^0-9+]"), "")
-}
+     
