@@ -59,6 +59,20 @@ class MainApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
 
+        // Warms sqlcipher's native lib load in parallel with Koin startup below,
+        // rather than paying its cost serially inside the runBlocking DB-init
+        // block further down. SecureDatabase.<clinit> calls
+        // System.loadLibrary("sqlcipher") itself when the DB is first resolved;
+        // System.loadLibrary is idempotent per classloader, so if this finishes
+        // first, that later call is a no-op, and if it hasn't finished, the
+        // runBlocking below still correctly blocks on it via the JVM's class-init
+        // lock. This does not touch the seedRequiredSources() ordering guarantee
+        // documented above — it only gives the expensive native-lib disk scan
+        // (APK zip central-directory lookup, StrictMode-flagged at ~1.2s on cold
+        // page cache) a head start elsewhere instead of removing it from the
+        // critical path.
+        Thread { System.loadLibrary("sqlcipher") }.start()
+
         StartupDiagnostics.mark(StartupDiagnostics.Event.APPLICATION_ON_CREATE_BEGIN)
         val startupBeginMs = System.currentTimeMillis()
         fun elapsed() = System.currentTimeMillis() - startupBeginMs
