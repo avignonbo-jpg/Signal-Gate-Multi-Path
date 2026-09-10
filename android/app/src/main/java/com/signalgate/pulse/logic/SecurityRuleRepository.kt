@@ -132,6 +132,37 @@ class SecurityRuleRepository(
     }
 
     /**
+     * Batched counterpart to [addContactAllow] for bulk contact import (onboarding's
+     * "Select All" / multi-select path). [addContactAllow] rebuilds both bloom
+     * filters via a full-table rescan on every call — correct for a single
+     * occasional action, but calling it once per contact in a loop means N full
+     * table rescans for N contacts, which is what made onboarding's contact import
+     * silently take many seconds with no visible error. This inserts the whole
+     * batch in one authoritative write and rebuilds the derived indexes exactly
+     * once afterward, matching the pattern replaceSourceSnapshot() already uses
+     * for external-source imports.
+     */
+    suspend fun addContactsAllowBatch(
+        contacts: List<Pair<String, String>>, // phoneNumber to displayName
+        sourceId: Int
+    ) {
+        if (contacts.isEmpty()) return
+        dataSourceRepository.insertEntriesAuthoritative(
+            contacts.map { (phoneNumber, displayName) ->
+                UnifiedEntryEntity(
+                    phoneNumber = phoneNumber,
+                    action = "ALLOW",
+                    sourceId = sourceId,
+                    category = "Contact",
+                    confidence = 100,
+                    metadata = displayName
+                )
+            }
+        )
+        dataSourceRepository.rebuildDerivedIndexes()
+    }
+
+    /**
      * Removes a manual rule. This is the one path that legitimately bypasses
      * DataSourceRepository's insertion boundary: BloomFilterEngine supports insertion only, not
      * deletion (a normal Bloom filter property, not a bug — see
