@@ -1005,3 +1005,11 @@ Status: Tasks 0.1, 1.1, 1.2, and 3.2 are implemented and CI-verified. Task 3.1 w
 Signature: Manus AI — 2026-09-01
 
 --- End of ledger entry ---
+
+2026-09-10 — Physical-device onboarding verification confirmed
+Who: Project owner, relayed to Manus AI.
+What: After installing the corrected `consumer-v1` build and exercising the device through startup, the owner confirmed that the EULA/welcome wizard appears before the dashboard. This directly validates the first-install route correction on a representative physical device.
+Evidence: Device log showed the application starting through `MainApplication.onCreate()` and completing database/Keystore initialization; no fatal exception or ANR was present in the supplied excerpt. The owner explicitly confirmed the visible order: EULA first, dashboard afterward.
+Status: Onboarding routing correction is device-verified. The separate startup StrictMode diagnostics remain open for later review: `runBlocking` in `MainApplication.onCreate()` performs database, Keystore, and SharedPreferences work on the main thread, with observed violations around 1.2 seconds. This is not part of the onboarding correction and must not be removed without a startup-initialization design review.
+Contract consulted: yes — onboarding/navigation source context and active Phase 4.0.7 assurance requirements.
+Signature: Manus AI — 2026-09-10
