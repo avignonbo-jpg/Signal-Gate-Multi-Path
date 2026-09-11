@@ -28,8 +28,6 @@ jobs:
           chmod +x ./scripts/check-architecture-drift.sh
           ./scripts/check-architecture-drift.sh
 
-      - name: Apply Timber tagging fix
-        run: git apply patches/signal-gate-pulse-fixes-v33.patch
       - name: Grant execute permission for gradlew
         run: chmod +x ./android/gradlew
 
