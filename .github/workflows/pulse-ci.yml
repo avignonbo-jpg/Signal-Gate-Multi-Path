@@ -30,7 +30,6 @@ jobs:
 
       - name: Apply Timber tagging fix
         run: git apply patches/signal-gate-pulse-timber-tags.patch
-
       - name: Grant execute permission for gradlew
         run: chmod +x ./android/gradlew
 
