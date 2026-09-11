@@ -59,10 +59,7 @@ jobs:
             #
             # The applicationId is deliberately retained for the Pulse flavor.
             # The Activity class uses the post-rename com.signalgate.pulse namespace.
-            scripts/verify-launch-and-capture.sh \
-              com.signalgate.multipoint.pulse/com.signalgate.pulse.MainActivity \
-              com.signalgate.multipoint.pulse \
-              "$GITHUB_WORKSPACE"
+            scripts/verify-launch-and-capture.sh com.signalgate.multipoint.pulse/com.signalgate.pulse.MainActivity com.signalgate.multipoint.pulse "$GITHUB_WORKSPACE"
 
       - name: Upload Full Logcat
         if: always()
