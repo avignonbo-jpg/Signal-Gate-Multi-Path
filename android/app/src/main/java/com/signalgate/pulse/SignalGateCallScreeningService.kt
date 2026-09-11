@@ -1,4 +1,4 @@
-file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 package com.signalgate.pulse
 
 import android.app.NotificationChannel
