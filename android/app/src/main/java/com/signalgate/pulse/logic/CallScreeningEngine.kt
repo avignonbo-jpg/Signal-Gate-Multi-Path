@@ -250,4 +250,5 @@ class CallScreeningEngine(
      * intentionally preserves, since exact-match DB lookups need digits/+ only.
      */
     private fun normalizePhoneNumber(phoneNumber: String): String =
-     
+        SanitizationEngine.sanitizePhoneNumber(phoneNumber).replace(Regex("[^0-9+]"), "")
+}
