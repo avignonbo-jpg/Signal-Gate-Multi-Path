@@ -93,8 +93,10 @@ fun SignalGateNavGraph(
             OnboardingWizardScreen(navController)
         }
 
-        // Contextual entry point only: the dashboard exposes this destination
-        // when the call-screening role is inactive; it is not a permanent menu item.
+        // Permission health screen: available from the dashboard when protection
+        // is inactive and from the navigation drawer at all times. Keeping this
+        // destination permanently reachable lets users verify or restore the
+        // Call Screening role and related permissions after onboarding.
         composable(Screen.PermissionSettings.route) {
             PermissionSettingsScreen()
         }
