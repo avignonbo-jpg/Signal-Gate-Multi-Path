@@ -32,6 +32,7 @@ fun GlassmorphicDrawerContent(
         Screen.CallLog,
         Screen.BlockAllowList,
         Screen.Digest,
+        Screen.PermissionSettings,
         Screen.Settings
     )
 
